@@ -401,7 +401,6 @@ with tab1:
         color="variable",
         barmode="group",
         template="plotly_dark",
-        hovermode="x unified"
     )
 
 
