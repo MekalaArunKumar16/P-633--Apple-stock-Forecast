@@ -26,7 +26,7 @@ st.markdown("<h2>📈 Apple Stock Forecast Dashboard</h2>", unsafe_allow_html=Tr
 
 
 # =====================================================
-# BASE DIRECTORY (FOR DEPLOYMENT)
+# BASE DIRECTORY
 # =====================================================
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -124,7 +124,7 @@ forecast_days = st.sidebar.slider("Forecast Days", 7, 60, 30)
 def load_data():
 
     if not os.path.exists(DATA_PATH):
-        st.error("❌ data/AAPL.csv not found in repository.")
+        st.error("❌ data/AAPL.csv not found.")
         st.stop()
 
     df = pd.read_csv(DATA_PATH)
@@ -158,7 +158,7 @@ def load_model():
     for name, path in files.items():
 
         if not os.path.exists(path):
-            st.error(f"❌ {name} file missing. Upload model folder.")
+            st.error(f"❌ {name} file missing.")
             st.stop()
 
     with open(MODEL_PATH, "rb") as f:
@@ -172,6 +172,10 @@ def load_model():
 
     with open(PREDICTIONS_PATH, "rb") as f:
         preds = pickle.load(f)
+
+    if not isinstance(metrics, dict):
+        st.error("❌ Invalid metrics file.")
+        st.stop()
 
     return model, scaler, metrics, preds
 
@@ -370,6 +374,7 @@ with tab1:
 
     st.markdown("### 🧪 Model Performance")
 
+
     results = pd.DataFrame({
 
         "Model": ["ARIMA", "SARIMA", "LSTM"],
@@ -394,13 +399,20 @@ with tab1:
     })
 
 
+    melted = results.melt(
+        id_vars="Model",
+        var_name="Metric",
+        value_name="Score"
+    )
+
+
     fig_metrics = px.bar(
-        results.melt("Model"),
+        melted,
         x="Model",
-        y="value",
-        color="variable",
+        y="Score",
+        color="Metric",
         barmode="group",
-        template="plotly_dark",
+        template="plotly_dark"
     )
 
 
