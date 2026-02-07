@@ -26,6 +26,28 @@ st.markdown("<h2>📈 Apple Stock Forecast Dashboard</h2>", unsafe_allow_html=Tr
 
 
 # =====================================================
+# BASE DIRECTORY (FOR DEPLOYMENT)
+# =====================================================
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# =====================================================
+# CONSTANTS (SAFE PATHS)
+# =====================================================
+
+DATA_PATH = os.path.join(BASE_DIR, "data", "AAPL.csv")
+
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "model", "scaler.pkl")
+METRICS_PATH = os.path.join(BASE_DIR, "model", "metrics.pkl")
+PREDICTIONS_PATH = os.path.join(BASE_DIR, "model", "predictions.pkl")
+
+PRICE_COL = "Close"
+WINDOW_SIZE = 60
+
+
+# =====================================================
 # CUSTOM STYLING
 # =====================================================
 
@@ -59,8 +81,6 @@ st.markdown(
         opacity: 0.9;
     }
 
-    /* COLORS */
-
     .green {
         background: linear-gradient(135deg,#0f5132,#198754);
         color: white;
@@ -81,30 +101,10 @@ st.markdown(
         color: black;
     }
 
-    .gray {
-        background: #161B22;
-        color: white;
-    }
-
     </style>
     """,
     unsafe_allow_html=True
 )
-
-
-# =====================================================
-# CONSTANTS
-# =====================================================
-
-DATA_PATH = "../data/AAPL.csv"
-
-MODEL_PATH = "../model/model.pkl"
-SCALER_PATH = "../model/scaler.pkl"
-METRICS_PATH = "../model/metrics.pkl"
-PREDICTIONS_PATH = "../model/predictions.pkl"
-
-PRICE_COL = "Close"
-WINDOW_SIZE = 60
 
 
 # =====================================================
@@ -123,6 +123,10 @@ forecast_days = st.sidebar.slider("Forecast Days", 7, 60, 30)
 @st.cache_data
 def load_data():
 
+    if not os.path.exists(DATA_PATH):
+        st.error("❌ data/AAPL.csv not found in repository.")
+        st.stop()
+
     df = pd.read_csv(DATA_PATH)
 
     df["Date"] = pd.to_datetime(df["Date"])
@@ -136,10 +140,6 @@ def load_data():
 
 df = load_data()
 
-if df.empty:
-    st.error("❌ Dataset not found.")
-    st.stop()
-
 
 # =====================================================
 # LOAD MODEL
@@ -148,16 +148,17 @@ if df.empty:
 @st.cache_resource
 def load_model():
 
-    files = [
-        MODEL_PATH,
-        SCALER_PATH,
-        METRICS_PATH,
-        PREDICTIONS_PATH
-    ]
+    files = {
+        "Model": MODEL_PATH,
+        "Scaler": SCALER_PATH,
+        "Metrics": METRICS_PATH,
+        "Predictions": PREDICTIONS_PATH
+    }
 
-    for file in files:
-        if not os.path.exists(file):
-            st.error("❌ Run model_training.ipynb first.")
+    for name, path in files.items():
+
+        if not os.path.exists(path):
+            st.error(f"❌ {name} file missing. Upload model folder.")
             st.stop()
 
     with open(MODEL_PATH, "rb") as f:
@@ -273,16 +274,11 @@ tab1, tab2 = st.tabs(["📊 Dashboard", "💡 Market Insight"])
 
 with tab1:
 
-    # ============================
-    # KPI SECTION
-    # ============================
-
     st.markdown("### 📊 Stock Summary")
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
 
     kpi(k1, "ATH", f"${ath:.2f}", ath_date.strftime("%d %b %Y"), "gold")
-
     kpi(k2, "ATL", f"${atl:.2f}", atl_date.strftime("%d %b %Y"), "blue")
 
     kpi(
@@ -302,19 +298,17 @@ with tab1:
     )
 
     kpi(k5, "Forecast High", f"${f_high:.2f}", "Next Period", "green")
-
     kpi(k6, "Forecast Low", f"${f_low:.2f}", "Next Period", "red")
 
 
     # ============================
-    # PRICE CHARTS
+    # PRICE CHART
     # ============================
 
     st.markdown("### 📈 Price Analysis")
 
     c1, c2 = st.columns(2)
 
-    # -------- Candlestick --------
     with c1:
 
         fig1 = go.Figure()
@@ -326,15 +320,13 @@ with tab1:
         ))
 
         fig1.update_layout(
-            title="Historical Price (closing Price)",
-            template="plotly_dark",
-            xaxis_rangeslider_visible=False
+            title="Historical Closing Price",
+            template="plotly_dark"
         )
 
         st.plotly_chart(fig1, use_container_width=True)
 
 
-    # -------- Forecast --------
     with c2:
 
         fig2 = go.Figure()
@@ -365,11 +357,9 @@ with tab1:
         t1, t2 = st.columns(2)
 
         with t1:
-            st.markdown("**Last 30 Days**")
             st.dataframe(df.tail(30), use_container_width=True)
 
         with t2:
-            st.markdown("**Forecasted Days**")
             st.dataframe(forecast_df.round(2), use_container_width=True)
 
 
@@ -409,8 +399,7 @@ with tab1:
         y="value",
         color="variable",
         barmode="group",
-        template="plotly_dark",
-        title="Model Error Comparison (Lower is Better)"
+        template="plotly_dark"
     )
 
 
@@ -440,8 +429,7 @@ with tab1:
 
 
     fig_compare.update_layout(
-        title="Prediction Comparison (Test Data)",
-        hovermode="x unified",
+        title="Prediction Comparison",
         template="plotly_dark"
     )
 
@@ -472,10 +460,6 @@ with tab2:
     close = df[PRICE_COL]
 
 
-    # ============================
-    # CALCULATIONS
-    # ============================
-
     last_30 = close.tail(30)
 
     trend_pct = ((last_30.iloc[-1] - last_30.iloc[0]) / last_30.iloc[0]) * 100
@@ -490,10 +474,6 @@ with tab2:
 
     risk = close.pct_change().std()
 
-
-    # ============================
-    # DECISION ENGINE
-    # ============================
 
     if trend_pct > 2 and forecast_pct > 3:
 
@@ -511,29 +491,18 @@ with tab2:
         message = "Weak trend detected"
 
 
-    # ============================
-    # RESULT
-    # ============================
-
     st.markdown("### 📢 Our Advice")
 
 
     if decision == "✅ BUY":
-
         st.success(f"{decision}\n\n{message}")
 
     elif decision == "⚠️ HOLD":
-
         st.warning(f"{decision}\n\n{message}")
 
     else:
-
         st.error(f"{decision}\n\n{message}")
 
-
-    # ============================
-    # METRICS
-    # ============================
 
     c1, c2, c3 = st.columns(3)
 
@@ -541,10 +510,6 @@ with tab2:
     c2.metric("Forecast Trend", f"{forecast_pct:.2f}%")
     c3.metric("Risk (Volatility)", f"{risk:.2%}")
 
-
-    # ============================
-    # ACTION GUIDE
-    # ============================
 
     st.markdown("### 👉 What You Should Do")
 
@@ -554,7 +519,7 @@ with tab2:
         st.success("""
         ✔ Consider entry  
         ✔ Set stop-loss  
-        ✔ Monitor closely 
+        ✔ Monitor closely
         """)
 
     elif decision == "⚠️ HOLD":
@@ -562,7 +527,7 @@ with tab2:
         st.warning("""
         ✔ Wait for confirmation  
         ✔ Track news  
-        ✔ Buy on dips  
+        ✔ Buy on dips
         """)
 
     else:
@@ -570,5 +535,5 @@ with tab2:
         st.error("""
         ✔ Avoid entry  
         ✔ Protect capital  
-        ✔ Find alternatives  
+        ✔ Find alternatives
         """)
