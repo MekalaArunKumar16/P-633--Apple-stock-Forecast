@@ -321,6 +321,7 @@ with tab1:
 
         fig1.update_layout(
             title="Historical Closing Price",
+            hovermode="x unified",
             template="plotly_dark"
         )
 
@@ -399,7 +400,8 @@ with tab1:
         y="value",
         color="variable",
         barmode="group",
-        template="plotly_dark"
+        template="plotly_dark",
+        hovermode="x unified"
     )
 
 
@@ -430,6 +432,7 @@ with tab1:
 
     fig_compare.update_layout(
         title="Prediction Comparison",
+        hovermode="x unified",
         template="plotly_dark"
     )
 
